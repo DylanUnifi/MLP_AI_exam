@@ -1,1 +1,2 @@
-# MLP_AI_exam
+# Esercizio per l'esame di Intelligenzia artificiale Unifi
+

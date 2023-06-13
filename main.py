@@ -1,7 +1,10 @@
 import random
-
+import matplotlib.pyplot as plt
+from keras.metrics import Mean
 from load_data import load_mnist
 import numpy as np
+from pickle import dump, load
+
 
 # Définir la fonction d'activation ReLU
 def relu(x):
@@ -88,14 +91,25 @@ W2 = np.random.randn(hidden_size, output_size) * 0.01
 b2 = np.zeros((1, output_size))
 
 # Définir le nombre d'itérations, le taux d'apprentissage, la taille des batch et le batch
-num_iterations = 10000
+num_iterations = 10
 learning_rate = 0.1
-batch_size = 25
+batch_size = 50
 batch = []
 for i in iterate_mini_batches(X_train, y_train, batch_size, shuffle=True):
     batch.append(i)
+
+# definir les tableaux pour contenir la loss e l'accuracy pour chaque iteration
+train_loss_dict = {}
+train_accuracy_dict = {}
+
+# Include metrics monitoring
+train_loss = Mean(name='train_loss')
+train_accuracy = Mean(name='train_accuracy')
+
 # Boucle d'entraînement
 for iteration in range(num_iterations):
+    train_loss.reset_state()
+    train_accuracy.reset_state()
     print("epoch ={}".format(iteration))
     X_batch, y_batch = batch[random.randint(0, len(batch) - 1)]
     y_batch_onehot = np.eye(num_classes_train)[y_batch]
@@ -107,12 +121,14 @@ for iteration in range(num_iterations):
 
     # Calcul de la fonction de perte (cross-entropy)
     loss = -np.sum(y_batch_onehot * np.log(a2)) / len(X_batch)
-    print("lost ={}".format(loss))
+    train_loss(loss)
+    # print("lost ={}".format(loss))
 
     # Calcul dell'accuracy
     y_pred = np.argmax(a2, axis=1)
     accuracy = np.mean(y_pred == y_batch)
-    print('Accuracy: %.2f%%' % (accuracy * 100))
+    train_accuracy(accuracy)
+    # print('Accuracy: %.2f%%' % (accuracy * 100))
 
     # Backpropagation
     delta2 = (a2 - y_batch_onehot) / len(X_batch)
@@ -128,6 +144,39 @@ for iteration in range(num_iterations):
     b2 -= learning_rate * db2
     W1 -= learning_rate * dW1
     b1 -= learning_rate * db1
+
+    train_loss_dict[iteration] = train_loss.result()
+    train_accuracy_dict[iteration] = train_accuracy.result()
+
+# Save the training loss values
+with open('./train_loss.pkl', 'wb') as file:
+    dump(train_loss_dict, file)
+
+# Save the training accuracy values
+with open('./train_accuracy.pkl', 'wb') as file:
+    dump(train_accuracy_dict, file)
+
+# Load the training loss and accuracy dictionaries
+train_loss = load(open('train_loss.pkl', 'rb'))
+train_accuracy = load(open('train_accuracy.pkl', 'rb'))
+
+# Retrieve each dictionary's values
+train_values = train_loss.values()
+accuracy_values = train_accuracy.values()
+
+# Generate a sequence of integers to represent the epoch numbers
+epochs = range(num_iterations)
+
+# tracer les courbes de la loss et de l'accuracy en fonction di nombre d'iteration
+plt.plot(epochs, train_values, label='Training Loss')
+# plt.plot(epochs, accuracy_values, label='Training Accuracy')
+
+plt.ylabel('loss')
+plt.xlabel('iteration')
+
+plt.xticks(np.arange(0, num_iterations+1, 1))
+
+plt.show()
 
 # Prétraitement des données de test
 X_test = X_test.reshape(X_test.shape[0], -1)
